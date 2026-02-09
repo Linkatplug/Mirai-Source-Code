@@ -31,6 +31,7 @@ static void teardown_connection(void);
 static void ensure_single_instance(void);
 static BOOL unlock_tbl_if_nodebug(char *);
 
+ipv4_t LOCAL_ADDR;
 struct sockaddr_in srv_addr;
 int fd_ctrl = -1, fd_serv = -1;
 BOOL pending_connection = FALSE;

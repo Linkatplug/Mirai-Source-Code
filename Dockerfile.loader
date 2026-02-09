@@ -1,0 +1,22 @@
+FROM gcc:11-bullseye
+
+# Install dependencies
+RUN apt-get update && apt-get install -y \
+    electric-fence \
+    telnet \
+    netcat \
+    vim \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy loader source
+COPY loader /app/loader
+
+# Build loader
+WORKDIR /app/loader
+RUN ./build.sh
+
+EXPOSE 8080
+
+CMD ["/bin/bash"]
